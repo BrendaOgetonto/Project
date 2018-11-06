@@ -1,0 +1,28 @@
+{% macro render_field(field) %}
+<div class="form-group">
+	<div class="form-label-group">
+    	{{field(class='form-control', **kwargs|safe }}
+    	<ul>
+    	{% for error in field.errors %}
+    		<li style="color:red;">{{ error }}</li>
+    	{% end for%}
+    	</ul> 
+    	<label for="{{field.name}}">{{field.label.text}}</label>
+    </div>
+</div>
+ {% end macro %}
+
+
+
+<div class="col-md-6">
+	<div class="form-label-group">
+		{{field(class='form-control', **kwargs|safe }}
+    	<ul>
+    	{% for error in field.errors %}
+    		<li style="color:red;">{{ error }}</li>
+    	{% end for%}
+    	</ul> 
+		<input type="text" id="firstName" class="form-control" placeholder="First name" required="required" autofocus="autofocus">
+		<label for="{{field.name}}">{{field.label.text}}</label>
+    </div>
+</div>
