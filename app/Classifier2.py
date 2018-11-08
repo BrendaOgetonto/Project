@@ -17,22 +17,10 @@ from sklearn.metrics import accuracy_score
 data2 = pd.read_table("negative.csv", sep = ',', engine= 'python')
 
 
-# In[31]:
-
-
-print(data.columns.values)
-
-
 # In[32]:
 
 
 data=data2.dropna()
-
-
-# In[33]:
-
-
-data.tail()
 
 
 # In[34]:
@@ -57,11 +45,6 @@ data['tweets'] = new_text
    
     
 
-
-# In[36]:
-
-
-data.head()
 
 
 # In[37]:
@@ -88,17 +71,11 @@ data['tweets'] = stem_tweet
         
 
 
-# In[39]:
-
-
-data.head()
-
-
 # In[40]:
 
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import roc_auc_score
 

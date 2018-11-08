@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect,url_for
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm 
 from wtforms import StringField, PasswordField, BooleanField
@@ -8,6 +8,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import tweepy
 from tweepy import OAuthHandler
+from sklearn.externals import joblib
+import numpy as numpy
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+from sklearn.feature_extraction.text import TfidfVectorizer
+import re
+import pandas as pd
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'MySecretKey'
@@ -60,7 +68,8 @@ def login():
 	form=LoginForm()
 
 	if form.is_submitted():
-		usemail = form.data.email
+		# print( form.email.data + form.password.data)
+		usemail = form.email.data
 		cursor = connection.cursor()
 		cursor.execute("SELECT * FROM users WHERE email = %s", (usemail))
 		user = cursor.fetchall()
@@ -90,29 +99,31 @@ def login():
 @app.route('/register', methods=['POST', 'GET'])
 def register():
 	form = RegisterForm()
+	form2 = LoginForm()
 
 	if form.is_submitted():
 		firstname = form.firstname.data
 		lastname = form.lastname.data
 		username = form.username.data
 		email = form.email.data
-		password = generate_password_hash(form.password.data, method='sha256')
+		password = form.password.data
+		pass_hash = generate_password_hash(form.password.data, method='sha256')
 
 		cursor = connection.cursor()
 
-		cursor.execute("INSERT INTO users (firstname,lastname,username,email,password) VALUES (%s,%s,%s,%s,%s)", (firstname,lastname,username,email,password))
+		cursor.execute("INSERT INTO users (firstname,lastname,username,email,password) VALUES (%s,%s,%s,%s,%s)", (firstname,lastname,username,email,pass_hash))
 		connection.commit()
-		render_template("login2.html", form=LoginForm())
+		return redirect(url_for('login'))
 
 	return render_template('register2.html', form=form)
 
 @app.route('/dashboard')
-@login_required
+# @login_required
 def dashboard():
     return render_template('dashboard.html', name=current_user.username)
 
 @app.route('/logout')
-@login_required
+# @login_required
 def logout():
     logout_user()
     return redirect(url_for('index'))
@@ -135,10 +146,78 @@ def keywords():
 
 	if form.is_submitted():
 		results = api.search(q=keywords)
-
+		ps = PorterStemmer()
+		model=joblib.load("C:/Users/Brenda/NBClassifier.pkl")
+		tfidf=joblib.load("C:/Users/Brenda/test.pkl")
+		# print("TFidf loaded")
+		#print(results)
+		output = []
 		for result in results:
-			tweet = result.text
-			print(tweet)
+			result = result.text
+			tweet = [result]
+			tftweet=tfidf.transform(tweet)
+			print("Transformed")
+			# print(tfidf)
+			# print(tftweet)
+			#mytweet.reshape(1,-1)
+			sentiment = model.predict(tftweet)
+			if sentiment == 0:
+				sentiment = "Non-radical"
+			elif sentiment == 1:
+				sentiment = "Radical"
+			else:
+				sentiment = "Neutral"
+			temp = {
+				"tweet":result,
+				"sentiment":sentiment
+			}
+			# temp.append(result)
+			# temp.append(sentiment)
+			output.append(temp)
+
+		print(type(output))
+		return render_template('results.html', output = output)
+			# print(result)
+			# print(sentiment)
+			# result_tags = re.sub(r'@[A-Za-z0-9]+','',result)
+			# # for word in result_tags:
+			# # 	if not word in set(stopwords.words('english')):
+			# # 		result_stem = ps.stem(word)
+			# result_stem = [ps.stem(word) for word in result_tags if not word in set(stopwords.words('english'))]
+			# print("Test 2")
+			# print(result_tags)
+			#result_stem2 = pd.Series(result_stem)
+					# tweets.append(result_stem)
+			#result_stem.reshape(1,-1)
+
+		# tweets = pd.Series(tweets)
+		# tweets = [tweet.lower() for tweet in tweets]
+		# # print(tweets)
+		# # result_features = vectorizer.fit_transform(tweets)
+		# print (result_features)
+		# print (type(result_features))
+		#sentiment = model.predict(result_tags)
+		
+		# mytweet=["This is a test tweet"]
+
+		# #from sklearn.feature_extraction.text import TfidfVectorizer
+		# #vectorizer = TfidfVectorizer(use_idf=True,lowercase=True,strip_accents='ascii')
+		# #vectorizer.fit_transform(mytweet)
+		# tftweet=tfidf.transform(mytweet)
+		# print("Transformed")
+		# print(tfidf)
+		# print(tftweet)
+		# #mytweet.reshape(1,-1)
+		# sentiment = model.predict(tftweet)
+		# print(sentiment)
+
+		#print("tweet:" + result + "/n" + "sentiment:" + sentiment + "/n")
+
+
+		# result = numpy.array(result)
+		# result = result.reshape(1,-1)
+		# sentiment = model.predict(result)
+		# print("tweet:" + result + "/n" + "sentiment:" + sentiment + "/n")
 
 		# return '<h1>' + keywords + '</h1>'
 	return render_template("search2.html", form=form)
