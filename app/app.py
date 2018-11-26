@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect,url_for
+from flask import Flask, render_template, request, jsonify, redirect,url_for, session
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm 
 from wtforms import StringField, PasswordField, BooleanField
@@ -16,26 +16,16 @@ from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 import re
 import pandas as pd
+from collections import Counter
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'MySecretKey'
 connection = pymysql.connect(host="localhost", user="root",passwd="",database="isproject")
 bootstrap = Bootstrap(app)
 
-# app.config['MYSQL_HOST'] = '127.0.0.1'
-# app.config['MYSQL_USER'] = 'root'
-# app.config['MYSQL_PASSWORD'] = ''
-# app.config['MYSQL_DB'] = 'isproject'
-
-# app.config['SQLAlchemy_DATABASE_URL'] = 'sqlite:///mnt/c\\Users\\Brenda\\Desktop\\IS_Project\\project_database.db'
-
-# database = SQLAlchemy(app)
-
-
 class LoginForm(FlaskForm):
     email = StringField('email', validators=[InputRequired(),Email(message='Invalid email'), Length(max=50)])
     password = PasswordField('password', validators=[InputRequired(), Length(min=8, max=80)])
-    remember = BooleanField('remember me')
 
 
 class RegisterForm(FlaskForm):
@@ -48,54 +38,35 @@ class RegisterForm(FlaskForm):
 
 class KeywordsForm(FlaskForm):
     keywords = StringField('Keywords')
+    projectname = StringField('projectname',validators=[Length(max=200), InputRequired()])
 
 
-# @app.route('/dbConnection')
-# def db():
-# 	cursor = connection.cursor()
-# 	cursor.execute("SELECT * FROM users" )
-# 	rv = cursor.fetchall()
-# 	print(rv)
-    
-
-@app.route('/')
-def index():
-    return render_template("index.html")
-
+#login function
 @app.route('/login', methods=['POST', 'GET'])
 def login():
 
 	form=LoginForm()
 
 	if form.is_submitted():
-		# print( form.email.data + form.password.data)
 		usemail = form.email.data
 		cursor = connection.cursor()
 		cursor.execute("SELECT * FROM users WHERE email = %s", (usemail))
-		user = cursor.fetchall()
-
+		user = []
+		for row in cursor:
+			user.append(row)
+		print(user[0][5])
 		if user:
-			if check_password_hash(user.password, form.password.data):
-				login_user(user, remember=form.remember.data)
-				return render_template("index.html")
+			if check_password_hash(user[0][5], form.password.data):
+				session['email'] = usemail
+				return redirect(url_for('keywords'))
 			return '<h1> incorrect password </h1>'
 
 		return '<h1> Email does not exist </h1>'
 
 	return render_template('login2.html', form=form)
 
-	# if form.validate_on_submit():
-	# 	user = User.query.filter_by(username=form.username.data).first()
-	# 	if user:
-	# 		if check_password_hash(user.password, form.password.data):
-	# 			login_user(user, remember=form.remember.data)
-	# 			return redirect(url_for('dashboard'))
-	# 	else:		
-	# 		return '<h1>Invalid username or password</h1>'
- #        #return '<h1>' + form.username.data + ' ' + form.password.data + '</h1>'
- #    else:
-    
 
+#user registration function
 @app.route('/register', methods=['POST', 'GET'])
 def register():
 	form = RegisterForm()
@@ -117,23 +88,29 @@ def register():
 
 	return render_template('register2.html', form=form)
 
-@app.route('/dashboard')
-# @login_required
-def dashboard():
-    return render_template('dashboard.html', name=current_user.username)
 
+#log out function
 @app.route('/logout')
-# @login_required
 def logout():
-    logout_user()
-    return redirect(url_for('index'))
+    session.pop('email', None)
+    return redirect(url_for('login'))
 
 
+@app.route('/getsession')
+def getsession():
+    if 'email' in session:
+    	user = session['email']
+    	print(user)
+    	print(type(user))
+
+
+#function to search for tweets
 @app.route('/keywords', methods=['POST', 'GET'])
 def keywords():
 	form = KeywordsForm()
 
 	keywords = form.keywords.data
+	project = form.projectname.data
 
 	ckey = 'QnxYONDqyBGXUQOPhSCRVixFu'
 	csecret = 'UJ5IjcQAWWIqtHFA9gsEgFZiSJtsN1rfY5jeAZUJDL3992CbvL'
@@ -144,25 +121,48 @@ def keywords():
 	auth.set_access_token(atoken, asecret)
 	api = tweepy.API(auth)
 
+	if 'email' in session:
+		user = session['email']
+
+	cursor = connection.cursor()
+	cursor.execute("SELECT * FROM projects WHERE email = %s",(user))
+	projectnames=[]
+	output2=[]
+
+	for row in cursor:
+		projectname = row[1]
+		pid = row[0]
+		projectnames.append(projectname)
+		temp2={ "projectname": projectname,
+				"pid": pid }
+		output2.append(temp2)
+
+	connection.commit()
+
+
+
 	if form.is_submitted():
 		results = api.search(q=keywords)
 		ps = PorterStemmer()
 		model=joblib.load("C:/Users/Brenda/NBClassifier.pkl")
 		tfidf=joblib.load("C:/Users/Brenda/test.pkl")
-		# print("TFidf loaded")
-		#print(results)
 		output = []
+		sentiment_array = []
+
 		for result in results:
 			result = result.text
 			tweet = [result]
 			tftweet=tfidf.transform(tweet)
-			print("Transformed")
-			# print(tfidf)
-			# print(tftweet)
-			#mytweet.reshape(1,-1)
 			sentiment = model.predict(tftweet)
+			
+			for ans in sentiment:
+				print(ans)
+				sentiment_array.append(ans)
+
+
+
 			if sentiment == 0:
-				sentiment = "Non-radical"
+				sentiment =  "Non-Radical"
 			elif sentiment == 1:
 				sentiment = "Radical"
 			else:
@@ -171,61 +171,155 @@ def keywords():
 				"tweet":result,
 				"sentiment":sentiment
 			}
-			# temp.append(result)
-			# temp.append(sentiment)
 			output.append(temp)
 
-		print(type(output))
-		return render_template('results.html', output = output)
-			# print(result)
-			# print(sentiment)
-			# result_tags = re.sub(r'@[A-Za-z0-9]+','',result)
-			# # for word in result_tags:
-			# # 	if not word in set(stopwords.words('english')):
-			# # 		result_stem = ps.stem(word)
-			# result_stem = [ps.stem(word) for word in result_tags if not word in set(stopwords.words('english'))]
-			# print("Test 2")
-			# print(result_tags)
-			#result_stem2 = pd.Series(result_stem)
-					# tweets.append(result_stem)
-			#result_stem.reshape(1,-1)
+		print(sentiment_array)
+		counter = Counter(sentiment_array)
+		count_r = counter[1]
+		count_nr = counter[0]
+		count_n = counter[2]
+		print(count_r)
+		print(count_nr)
+		print(count_n)
+		print(counter)
+		print(project,user,keywords,count_r,count_nr,count_n)
 
-		# tweets = pd.Series(tweets)
-		# tweets = [tweet.lower() for tweet in tweets]
-		# # print(tweets)
-		# # result_features = vectorizer.fit_transform(tweets)
-		# print (result_features)
-		# print (type(result_features))
-		#sentiment = model.predict(result_tags)
+		cursor = connection.cursor()
+		cursor.execute("INSERT INTO projects (projectName,email,keywords,radicalCount,nonradicalCount,neutralCount) VALUES (%s,%s,%s,%s,%s,%s)", (project,user,keywords,count_r,count_nr,count_n))
 		
-		# mytweet=["This is a test tweet"]
+		cursor.execute("SELECT * FROM projects WHERE email = %s",(user))
+		projectnames=[]
+		output2=[]
 
-		# #from sklearn.feature_extraction.text import TfidfVectorizer
-		# #vectorizer = TfidfVectorizer(use_idf=True,lowercase=True,strip_accents='ascii')
-		# #vectorizer.fit_transform(mytweet)
-		# tftweet=tfidf.transform(mytweet)
-		# print("Transformed")
-		# print(tfidf)
-		# print(tftweet)
-		# #mytweet.reshape(1,-1)
-		# sentiment = model.predict(tftweet)
-		# print(sentiment)
+		for row in cursor:
+			projectname = row[1]
+			pid = row[0]
+			projectnames.append(projectname)
+			temp2={ "projectname": projectname,
+					"pid": pid }
+			output2.append(temp2)
 
-		#print("tweet:" + result + "/n" + "sentiment:" + sentiment + "/n")
+		connection.commit()
+
+		return render_template('results.html', output = output, output2=output2)
+			
+	return render_template("search2.html", form=form, output2=output2 )
 
 
-		# result = numpy.array(result)
-		# result = result.reshape(1,-1)
-		# sentiment = model.predict(result)
-		# print("tweet:" + result + "/n" + "sentiment:" + sentiment + "/n")
+@app.route('/admin')
+def admin():
+	return render_template("index.html")
 
-		# return '<h1>' + keywords + '</h1>'
-	return render_template("search2.html", form=form)
+@app.route('/users')
+def users():
 
-@app.route('/results')
-def results():
-    return render_template("results.html")
+	output3 =[]
+	cursor = connection.cursor()
+	cursor.execute("SELECT * FROM users")
+
+	for row in cursor:
+		uid = row[0]
+		firstname = row[1]
+		lastname = row[2]
+		username = row[3]
+		email = row[4]
+
+		
+		temp3={ "uid": uid,
+				"firstname": firstname,
+				"lastname": lastname,
+				"username": username,
+				"email": email
+				 }
+		output3.append(temp3)
+
+	connection.commit()
+
+
+	return render_template("users.html", output3 = output3 )
+
+
+@app.route('/projects')
+def admin_projects():
+
+	output4 =[]
+	cursor = connection.cursor()
+	cursor.execute("SELECT * FROM projects")
+
+	for row in cursor:
+		pid = row[0]
+		projectname = row[1]
+		keywords = row[3]
+		email = row[2]
+		radicalCount = row[4]
+		nonradicalCount = row[5]
+		neutralCount = row[6]
+
+		
+		temp4={ "pid": pid,
+				"projectname": projectname,
+				"keywords": keywords,
+				"email": email,
+				"radicalCount": radicalCount,
+				"nonradicalCount": nonradicalCount,
+				"neutralCount": neutralCount
+				 }
+		output4.append(temp4)
+
+	connection.commit()
+
+
+	return render_template("projects.html", output4 = output4 )
+
+
+@app.route('/delete' , methods=['GET', 'POST'])
+def delete():
+	if request.method == 'POST':
+		user_id = request.form.get('delete')
+		print(user_id)
+
+		cursor = connection.cursor()
+		cursor.execute("DELETE FROM users WHERE uid=%s",(user_id))
+		connection.commit()
+
+	return redirect(url_for('users'))
+
+
+
+@app.route('/proj/<pid>')
+def proj(pid):
+	print("retrieved")
+	project=[]
+	output5=[]
+
+	cursor = connection.cursor()
+	cursor.execute("SELECT * FROM projects WHERE pid=%s",(pid))
+
+	for row in cursor:
+		project.append(row)
+
+		pid = row[0]
+		projectname = row[1]
+		keywords = row[3]
+		email = row[2]
+		radicalCount = row[4]
+		nonradicalCount = row[5]
+		neutralCount = row[6]
+
+		temp5={ "pid": pid,
+				"projectname": projectname,
+				"keywords": keywords,
+				"email": email,
+				"radicalCount": radicalCount,
+				"nonradicalCount": nonradicalCount,
+				"neutralCount": neutralCount
+				 }
+		output5.append(temp5)
+
+	connection.commit()
+	return render_template("project_view.html", output5 = output5 )
 
 
 if __name__ == '__main__':
 	app.run()
+	app.secret_key = 'MySecretKey'

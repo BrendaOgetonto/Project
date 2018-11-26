@@ -15,7 +15,7 @@ auth.set_access_token(atoken, asecret)
 api = tweepy.API(auth)
 
 
-results = api.search(q="stop terrorism")
+results = api.search(q="")
 
 for result in results:
 	tweet=result.text

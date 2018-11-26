@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -10,7 +9,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>SB Admin</title>
+    <title>User Projects</title>
 
     <!-- Bootstrap core CSS-->
     <link href="static/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
@@ -28,7 +27,7 @@
 
   <body id="page-top">
 
-    <nav class="navbar navbar-expand navbar-dark bg-dark static-top">
+   <nav class="navbar navbar-expand navbar-dark bg-dark static-top">
 
       <button class="btn btn-link btn-sm text-white order-1 order-sm-0" id="sidebarToggle" href="#">
         <i class="fas fa-bars"></i>
@@ -36,61 +35,70 @@
     </nav>
 
     <div id="wrapper">
-
       <!-- Sidebar -->
       <ul class="sidebar navbar-nav">
+        <li class="nav-item active">
+          <a class="nav-link" href="/admin">
+            <i class="fas fa-fw fa-tachometer-alt"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item active">
+          <a class="nav-link" href="/users">
+            <i class="fas fa-users"></i>
+            <span>Users</span>
+          </a>
+        </li>
+        <li class="nav-item active">
+          <a class="nav-link" href="/projects">
+            <i class="fas fa-fw fa-folder"></i>
+            <span>Projects</span>
+          </a>
+        </li>
         <a href="/logout" class="btn btn-secondary">Log Out</a>
       </ul>
+
 
       <div id="content-wrapper">
 
         <div class="container-fluid">
-
-          <!-- Breadcrumbs-->
-          <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-              <a href="#">Dashboard</a>
-            </li>
-            <li class="breadcrumb-item active">Overview</li>
-          </ol>
-
-          <!-- Icon Cards-->
-          <div class="row">
-            <div class="col-xl-3 col-sm-6 mb-3">
-              <div class="card text-white bg-warning o-hidden h-100">
-                <div class="card-body">
-                  <div class="card-body-icon">
-                    <i class="fas fa-fw fa-list"></i>
-                  </div>
-                  <div class="mr-5">System Users</div>
-                </div>
-                <a class="card-footer text-white clearfix small z-1" href="/users">
-                  <span class="float-left">View Details</span>
-                  <span class="float-right">
-                    <i class="fas fa-angle-right"></i>
-                  </span>
-                </a>
-              </div>
-            </div>
-            <div class="col-xl-3 col-sm-6 mb-3">
-              <div class="card text-white bg-success o-hidden h-100">
-                <div class="card-body">
-                  <div class="card-body-icon">
-                    <i class="fas fa-fw fa-shopping-cart"></i>
-                  </div>
-                  <div class="mr-5">User Projects</div>
-                </div>
-                <a class="card-footer text-white clearfix small z-1" href="/projects">
-                  <span class="float-left">View Details</span>
-                  <span class="float-right">
-                    <i class="fas fa-angle-right"></i>
-                  </span>
-                </a>
+          <!-- DataTables Example -->
+          <div class="card mb-3">
+            <div class="card-header">
+              <i class="fas fa-table"></i>
+              Projects....</div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                  <thead>
+                    <tr>
+                      <th>pid</th>
+                      <th>Project Name</th>
+                      <th>Keywords</th>
+                      <th>Email</th>
+                      <th>Radical Count</th>
+                      <th>Non-radical Count</th>
+                      <th>Neutral Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for out in output4 %}
+                    <tr>
+                      <td>{{out['pid']}}</td>
+                      <td>{{out['projectname']}}</td>
+                      <td>{{out['keywords']}}</td>
+                      <td>{{out['email']}}</td>
+                      <td>{{out['radicalCount']}}</td>
+                      <td>{{out['nonradicalCount']}}</td>
+                      <td>{{out['neutralCount']}}</td>
+                    </tr>
+              {% endfor %}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-         
         </div>
         <!-- /.container-fluid -->
 
@@ -109,7 +117,11 @@
     </div>
     <!-- /#wrapper -->
 
-   <!-- Bootstrap core JavaScript-->
+    <!-- Scroll to Top Button-->
+    <a class="scroll-to-top rounded" href="#page-top">
+      <i class="fas fa-angle-up"></i>
+    </a>
+    <!-- Bootstrap core JavaScript-->
     <script src="static/vendor/jquery/jquery.min.js"></script>
     <script src="static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 
